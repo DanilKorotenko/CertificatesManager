@@ -99,10 +99,24 @@ public partial class MainWindow : Window
             return;
         }
 
+        var selectedItems = CertificatesListView.SelectedItems
+            .Cast<CertificateListItem>()
+            .ToList();
+
+        var shouldUseBulkMenu = selectedItems.Count > 1 && selectedItems.Contains(item);
+        if (shouldUseBulkMenu)
+        {
+            BuildBulkContextMenu(listViewItem, selectedItems);
+            return;
+        }
+
         var targetBaseName = item.IsRsa
             ? $"{item.PersonName}_RSA"
             : item.PersonName;
-        var renameHeader = $"Переіменувати в {targetBaseName}";
+        var menuitemBaseName = item.IsRsa
+            ? $"{item.PersonName}__RSA"
+            : item.PersonName;
+        var renameHeader = $"Переіменувати в {menuitemBaseName}";
         var renameMenuItem = new MenuItem
         {
             Header = renameHeader
@@ -119,6 +133,30 @@ public partial class MainWindow : Window
         {
             DataContext = item
         };
+        contextMenu.Items.Add(renameMenuItem);
+        contextMenu.Items.Add(new Separator());
+        contextMenu.Items.Add(deleteMenuItem);
+
+        listViewItem.ContextMenu = contextMenu;
+    }
+
+    private void BuildBulkContextMenu(ListViewItem listViewItem, List<CertificateListItem> selectedItems)
+    {
+        var renameMenuItem = new MenuItem
+        {
+            Header = "Переіменувати відповідно ПІБ та ПІБ__RSA",
+            DataContext = selectedItems
+        };
+        renameMenuItem.Click += BulkRenameFilesMenuItem_Click;
+
+        var deleteMenuItem = new MenuItem
+        {
+            Header = "Видалити всі",
+            DataContext = selectedItems
+        };
+        deleteMenuItem.Click += BulkDeleteFilesMenuItem_Click;
+
+        var contextMenu = new ContextMenu();
         contextMenu.Items.Add(renameMenuItem);
         contextMenu.Items.Add(new Separator());
         contextMenu.Items.Add(deleteMenuItem);
@@ -177,6 +215,89 @@ public partial class MainWindow : Window
         }
     }
 
+    private void BulkRenameFilesMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: List<CertificateListItem> items } || items.Count == 0)
+        {
+            return;
+        }
+
+        var selectedSourcePaths = items
+            .Select(x => x.FilePath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var plannedRenames = new List<(string SourcePath, string TargetPath, string TargetFileName)>();
+
+        foreach (var item in items)
+        {
+            if (string.IsNullOrWhiteSpace(item.PersonName))
+            {
+                SetStatus("Error: неможливо перейменувати файл без ПІБ.");
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(item.FilePath);
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                SetStatus("Error: невірний шлях до файлу.");
+                return;
+            }
+
+            var normalizedName = SanitizeFileName(item.PersonName.Trim());
+            if (string.IsNullOrWhiteSpace(normalizedName))
+            {
+                SetStatus("Error: некоректне ім'я для перейменування.");
+                return;
+            }
+
+            var targetFileName = item.IsRsa
+                ? $"{normalizedName}.cer"
+                : $"{normalizedName}_RSA.cer";
+            var targetPath = Path.Combine(directory, targetFileName);
+
+            if (!string.Equals(item.FilePath, targetPath, StringComparison.OrdinalIgnoreCase)
+                && File.Exists(targetPath)
+                && !selectedSourcePaths.Contains(targetPath))
+            {
+                SetStatus($"Error: файл {targetFileName} вже існує.");
+                return;
+            }
+
+            plannedRenames.Add((item.FilePath, targetPath, targetFileName));
+        }
+
+        var duplicateTargets = plannedRenames
+            .GroupBy(x => x.TargetPath, StringComparer.OrdinalIgnoreCase)
+            .Where(x => x.Count() > 1)
+            .Select(x => x.First().TargetFileName)
+            .ToList();
+
+        if (duplicateTargets.Count > 0)
+        {
+            SetStatus($"Error: дублікати імен при перейменуванні ({duplicateTargets[0]}).");
+            return;
+        }
+
+        try
+        {
+            foreach (var rename in plannedRenames)
+            {
+                if (string.Equals(rename.SourcePath, rename.TargetPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                File.Move(rename.SourcePath, rename.TargetPath, overwrite: false);
+            }
+
+            RefreshCurrentFolder();
+            SetStatus($"Перейменовано файлів: {plannedRenames.Count}");
+        }
+        catch (Exception exception)
+        {
+            SetStatus($"Error: {exception.Message}");
+        }
+    }
+
     private void DeleteFileMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not MenuItem { DataContext: CertificateListItem item })
@@ -189,6 +310,32 @@ public partial class MainWindow : Window
             File.Delete(item.FilePath);
             RefreshCurrentFolder();
             SetStatus($"Файл видалено: {item.FileName}");
+        }
+        catch (Exception exception)
+        {
+            SetStatus($"Error: {exception.Message}");
+        }
+    }
+
+    private void BulkDeleteFilesMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: List<CertificateListItem> items } || items.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (var item in items)
+            {
+                if (File.Exists(item.FilePath))
+                {
+                    File.Delete(item.FilePath);
+                }
+            }
+
+            RefreshCurrentFolder();
+            SetStatus($"Видалено файлів: {items.Count}");
         }
         catch (Exception exception)
         {

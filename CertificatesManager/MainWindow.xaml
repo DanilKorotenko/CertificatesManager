@@ -44,7 +44,8 @@
         <ListView x:Name="CertificatesListView"
                   Grid.Row="2"
                   Grid.Column="0"
-                  Grid.ColumnSpan="2">
+                  Grid.ColumnSpan="2"
+                  SelectionMode="Extended">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <EventSetter Event="ContextMenuOpening"
