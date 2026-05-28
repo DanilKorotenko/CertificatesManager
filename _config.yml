@@ -1,0 +1,12 @@
+remote_theme: pages-themes/minimal@v0.2.0
+plugins:
+- jekyll-remote-theme # add this line to the plugins list if you already have one
+
+title: Certificates Manager
+description: Browse FTP server, monitoring with automatic refresh, copy and delete files and folders.
+
+show_downloads: true
+
+github:
+  zip_url: https://github.com/DanilKorotenko/FtpWatcher/zipball/main
+  latest_release_url: https://github.com/DanilKorotenko/FtpWatcher/releases/latest
