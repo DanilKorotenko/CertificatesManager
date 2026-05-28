@@ -3,10 +3,53 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:CertificatesManager"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="Certificates Manager"
+        Height="450"
+        Width="800">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
 
+        <TextBlock Grid.Row="0"
+                   Grid.Column="0"
+                   Grid.ColumnSpan="2"
+                   Margin="0,0,0,8"
+                   Text="Certificates folder" />
+
+        <TextBox x:Name="FolderPathTextBox"
+                 Grid.Row="1"
+                 Grid.Column="0"
+                 Margin="0,0,8,12"
+                 VerticalContentAlignment="Center"
+                 KeyDown="FolderPathTextBox_KeyDown"
+                 LostFocus="FolderPathTextBox_LostFocus" />
+
+        <Button Grid.Row="1"
+                Grid.Column="1"
+                Width="120"
+                Height="30"
+                VerticalAlignment="Top"
+                Content="Choose folder"
+                Click="ChooseFolderButton_Click" />
+
+        <ListView x:Name="CertificatesListView"
+                  Grid.Row="2"
+                  Grid.Column="0"
+                  Grid.ColumnSpan="2">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Width="740"
+                                    DisplayMemberBinding="{Binding}" />
+                </GridView>
+            </ListView.View>
+        </ListView>
     </Grid>
 </Window>
