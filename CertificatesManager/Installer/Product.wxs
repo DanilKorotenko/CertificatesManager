@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+    <Wix  xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+    <Package ProductCode="*"
+        Language="1033"
+        Manufacturer="dkorotenko"
+        Name="Certificates manager"
+        Version="1.0.$(var.BuildNumber)"
+        Codepage="utf-8"
+        Compressed="yes"
+        Scope="perUser"
+        UpgradeCode="f7347895-fb62-4573-a67b-0deac2e9bd82">
+
+        <StandardDirectory Id="LocalAppDataFolder">
+            <Directory Id="MANUFACTURERFOLDER" Name="dkorotenko">
+                <Directory Id="INTERNAL" Name="CertificatesManager" />
+            </Directory>
+        </StandardDirectory>
+
+        <MediaTemplate EmbedCab="yes" />
+
+        <Files Directory="INTERNAL" Include="..\bin\Release\net9.0-windows\win-x64\publish\**" />
+
+        <ComponentGroup Id="MainComponenets">
+            <Component Id="Shortcuts" Guid="029c2bef-0cc6-488e-b3d9-61dcdfc975c7">
+                <Shortcut
+                    Id="DesktopShortcut"
+                    Name="CertificatesManager"
+                    Directory="DesktopFolder"
+                    WorkingDirectory="INTERNAL"
+                    Target="[INTERNAL]CertificatesManager.exe"/>
+                <Shortcut
+                    Id="ApplicationStartMenuShortcutInFile"
+                    Name="CertificatesManager"
+                    Directory="ProgramMenuFolder"
+                    WorkingDirectory="INTERNAL"
+                    Target="[INTERNAL]CertificatesManager.exe"/>
+            </Component>
+        </ComponentGroup>
+    </Package>
+</Wix>
