@@ -92,6 +92,110 @@ public partial class MainWindow : Window
         ApplyCertificatesFolder(FolderPathTextBox.Text);
     }
 
+    private void CertificatesListViewItem_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (sender is not ListViewItem listViewItem || listViewItem.DataContext is not CertificateListItem item)
+        {
+            return;
+        }
+
+        var targetBaseName = item.IsRsa
+            ? $"{item.PersonName}_RSA"
+            : item.PersonName;
+        var renameHeader = $"Переіменувати в {targetBaseName}";
+        var renameMenuItem = new MenuItem
+        {
+            Header = renameHeader
+        };
+        renameMenuItem.Click += RenameFileMenuItem_Click;
+
+        var deleteMenuItem = new MenuItem
+        {
+            Header = "Видалити файл"
+        };
+        deleteMenuItem.Click += DeleteFileMenuItem_Click;
+
+        var contextMenu = new ContextMenu
+        {
+            DataContext = item
+        };
+        contextMenu.Items.Add(renameMenuItem);
+        contextMenu.Items.Add(new Separator());
+        contextMenu.Items.Add(deleteMenuItem);
+
+        listViewItem.ContextMenu = contextMenu;
+    }
+
+    private void RenameFileMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: CertificateListItem item })
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(item.PersonName))
+        {
+            SetStatus("Error: неможливо перейменувати файл без ПІБ.");
+            return;
+        }
+
+        try
+        {
+            var directory = Path.GetDirectoryName(item.FilePath);
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                SetStatus("Error: невірний шлях до файлу.");
+                return;
+            }
+
+            var normalizedName = SanitizeFileName(item.PersonName.Trim());
+            if (string.IsNullOrWhiteSpace(normalizedName))
+            {
+                SetStatus("Error: некоректне ім'я для перейменування.");
+                return;
+            }
+
+            var targetFileName = item.IsRsa
+                ? $"{normalizedName}_RSA.cer"
+                : $"{normalizedName}.cer";
+
+            var targetPath = Path.Combine(directory, targetFileName);
+            if (!string.Equals(item.FilePath, targetPath, StringComparison.OrdinalIgnoreCase)
+                && File.Exists(targetPath))
+            {
+                SetStatus("Error: файл з таким ім'ям вже існує.");
+                return;
+            }
+
+            File.Move(item.FilePath, targetPath, overwrite: false);
+            RefreshCurrentFolder();
+            SetStatus($"Файл перейменовано: {targetFileName}");
+        }
+        catch (Exception exception)
+        {
+            SetStatus($"Error: {exception.Message}");
+        }
+    }
+
+    private void DeleteFileMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: CertificateListItem item })
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(item.FilePath);
+            RefreshCurrentFolder();
+            SetStatus($"Файл видалено: {item.FileName}");
+        }
+        catch (Exception exception)
+        {
+            SetStatus($"Error: {exception.Message}");
+        }
+    }
+
     private void PersonNameTextBlock_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         CopyTextFromCellToClipboard(sender, "ПІБ скопійовано в кліпбоард");
@@ -164,6 +268,7 @@ public partial class MainWindow : Window
             return new CertificateListItem
             {
                 FileName = Path.GetFileName(filePath) ?? filePath,
+                FilePath = filePath,
                 IsProtected = HasProtectedEku(certificate),
                 IsRsa = HasRequiredKeyUsage(certificate),
                 PersonName = certificate.GetNameInfo(X509NameType.SimpleName, false),
@@ -175,7 +280,8 @@ public partial class MainWindow : Window
             fileError = $"Error reading {Path.GetFileName(filePath)}: {exception.Message}";
             return new CertificateListItem
             {
-                FileName = Path.GetFileName(filePath) ?? filePath
+                FileName = Path.GetFileName(filePath) ?? filePath,
+                FilePath = filePath
             };
         }
     }
@@ -357,6 +463,28 @@ public partial class MainWindow : Window
         }
     }
 
+    private void RefreshCurrentFolder()
+    {
+        if (string.IsNullOrWhiteSpace(FolderPathTextBox.Text) || !Directory.Exists(FolderPathTextBox.Text))
+        {
+            _certificateFiles.Clear();
+            return;
+        }
+
+        RefreshCertificatesList(FolderPathTextBox.Text);
+    }
+
+    private static string SanitizeFileName(string fileName)
+    {
+        var invalidCharacters = Path.GetInvalidFileNameChars();
+        foreach (var invalidCharacter in invalidCharacters)
+        {
+            fileName = fileName.Replace(invalidCharacter, '_');
+        }
+
+        return fileName;
+    }
+
     private sealed class AppSettings
     {
         public string? CertificatesFolder { get; init; }
@@ -369,6 +497,8 @@ public partial class MainWindow : Window
         public bool IsRsa { get; init; }
 
         public string FileName { get; init; } = string.Empty;
+
+        public string FilePath { get; init; } = string.Empty;
 
         public string PersonName { get; init; } = string.Empty;
 
