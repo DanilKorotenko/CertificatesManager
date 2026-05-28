@@ -92,6 +92,16 @@ public partial class MainWindow : Window
         ApplyCertificatesFolder(FolderPathTextBox.Text);
     }
 
+    private void PersonNameTextBlock_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        CopyTextFromCellToClipboard(sender, "ПІБ скопійовано в кліпбоард");
+    }
+
+    private void TinTextBlock_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        CopyTextFromCellToClipboard(sender, "ІПН скопійовано в кліпбоард");
+    }
+
     private void ApplyCertificatesFolder(string? folderPath)
     {
         DisposeWatcher();
@@ -327,6 +337,24 @@ public partial class MainWindow : Window
     private void SetStatus(string message)
     {
         StatusTextBlock.Text = message;
+    }
+
+    private void CopyTextFromCellToClipboard(object sender, string successMessage)
+    {
+        if (sender is not TextBlock textBlock || string.IsNullOrWhiteSpace(textBlock.Text))
+        {
+            return;
+        }
+
+        try
+        {
+            Clipboard.SetText(textBlock.Text);
+            SetStatus(successMessage);
+        }
+        catch (Exception exception)
+        {
+            SetStatus($"Error: {exception.Message}");
+        }
     }
 
     private sealed class AppSettings

@@ -57,11 +57,25 @@
                                     Width="200"
                                     DisplayMemberBinding="{Binding FileName}" />
                     <GridViewColumn Header="ПІБ"
-                                    Width="280"
-                                    DisplayMemberBinding="{Binding PersonName}" />
+                                    Width="280">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding PersonName}"
+                                           Cursor="Hand"
+                                           MouseLeftButtonUp="PersonNameTextBlock_MouseLeftButtonUp" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
                     <GridViewColumn Header="ІПН"
-                                    Width="100"
-                                    DisplayMemberBinding="{Binding Tin}" />
+                                    Width="100">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Tin}"
+                                           Cursor="Hand"
+                                           MouseLeftButtonUp="TinTextBlock_MouseLeftButtonUp" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
                 </GridView>
             </ListView.View>
         </ListView>
