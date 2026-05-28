@@ -380,7 +380,7 @@ public partial class MainWindow : Window
     {
         var files = Directory
             .GetFiles(folderPath, CertificatesExtension, SearchOption.TopDirectoryOnly)
-            .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(File.GetLastWriteTimeUtc)
             .ToList();
 
         _certificateFiles.Clear();
