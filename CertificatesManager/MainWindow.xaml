@@ -46,8 +46,21 @@
                   Grid.ColumnSpan="2">
             <ListView.View>
                 <GridView>
-                    <GridViewColumn Width="740"
-                                    DisplayMemberBinding="{Binding}" />
+                    <GridViewColumn Header="Захищений"
+                                    Width="85"
+                                    DisplayMemberBinding="{Binding IsProtectedMark}" />
+                    <GridViewColumn Header="RSA"
+                                    Width="60"
+                                    DisplayMemberBinding="{Binding IsRsaMark}" />
+                    <GridViewColumn Header="Файл"
+                                    Width="200"
+                                    DisplayMemberBinding="{Binding FileName}" />
+                    <GridViewColumn Header="ПІБ"
+                                    Width="280"
+                                    DisplayMemberBinding="{Binding PersonName}" />
+                    <GridViewColumn Header="ІПН"
+                                    Width="100"
+                                    DisplayMemberBinding="{Binding Tin}" />
                 </GridView>
             </ListView.View>
         </ListView>

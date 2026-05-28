@@ -1,6 +1,8 @@
 ﻿using System.Collections.ObjectModel;
 using System.IO;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -11,8 +13,9 @@ namespace CertificatesManager;
 public partial class MainWindow : Window
 {
     private const string CertificatesExtension = "*.cer";
+    private const string ProtectedEkuOid = "1.3.6.1.4.1.19398.1.1.8.22";
 
-    private readonly ObservableCollection<string> _certificateFiles = [];
+    private readonly ObservableCollection<CertificateListItem> _certificateFiles = [];
     private readonly string _settingsFilePath;
     private FileSystemWatcher? _folderWatcher;
 
@@ -104,8 +107,82 @@ public partial class MainWindow : Window
         _certificateFiles.Clear();
         foreach (var filePath in files)
         {
-            _certificateFiles.Add(Path.GetFileName(filePath) ?? filePath);
+            _certificateFiles.Add(BuildCertificateItem(filePath));
         }
+    }
+
+    private static CertificateListItem BuildCertificateItem(string filePath)
+    {
+        try
+        {
+            using var certificate = X509CertificateLoader.LoadCertificateFromFile(filePath);
+
+            return new CertificateListItem
+            {
+                FileName = Path.GetFileName(filePath) ?? filePath,
+                IsProtected = HasProtectedEku(certificate),
+                IsRsa = HasRequiredKeyUsage(certificate),
+                PersonName = certificate.GetNameInfo(X509NameType.SimpleName, false),
+                Tin = ExtractTin(certificate.Subject)
+            };
+        }
+        catch
+        {
+            return new CertificateListItem
+            {
+                FileName = Path.GetFileName(filePath) ?? filePath
+            };
+        }
+    }
+
+    private static bool HasProtectedEku(X509Certificate2 certificate)
+    {
+        foreach (var extension in certificate.Extensions)
+        {
+            if (extension is not X509EnhancedKeyUsageExtension ekuExtension)
+            {
+                continue;
+            }
+
+            foreach (var oidObject in ekuExtension.EnhancedKeyUsages)
+            {
+                if (oidObject is System.Security.Cryptography.Oid oid
+                    && string.Equals(oid.Value, ProtectedEkuOid, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    private static bool HasRequiredKeyUsage(X509Certificate2 certificate)
+    {
+        var requiredFlags = X509KeyUsageFlags.DigitalSignature
+            | X509KeyUsageFlags.NonRepudiation
+            | X509KeyUsageFlags.KeyEncipherment;
+
+        foreach (var extension in certificate.Extensions)
+        {
+            if (extension is not X509KeyUsageExtension keyUsageExtension)
+            {
+                continue;
+            }
+
+            var keyUsage = keyUsageExtension.KeyUsages;
+            return (keyUsage & requiredFlags) == requiredFlags;
+        }
+
+        return false;
+    }
+
+    private static string ExtractTin(string subject)
+    {
+        var match = Regex.Match(subject, @"SERIALNUMBER\s*=\s*TINUA-(\d{10})", RegexOptions.IgnoreCase);
+        return match.Success ? match.Groups[1].Value : string.Empty;
     }
 
     private void StartFolderWatcher(string folderPath)
@@ -199,5 +276,22 @@ public partial class MainWindow : Window
     private sealed class AppSettings
     {
         public string? CertificatesFolder { get; init; }
+    }
+
+    private sealed class CertificateListItem
+    {
+        public bool IsProtected { get; init; }
+
+        public bool IsRsa { get; init; }
+
+        public string FileName { get; init; } = string.Empty;
+
+        public string PersonName { get; init; } = string.Empty;
+
+        public string Tin { get; init; } = string.Empty;
+
+        public string IsProtectedMark => IsProtected ? "✓" : string.Empty;
+
+        public string IsRsaMark => IsRsa ? "✓" : string.Empty;
     }
 }
