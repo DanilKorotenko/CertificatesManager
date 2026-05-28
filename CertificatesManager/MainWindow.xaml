@@ -83,6 +83,9 @@
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
+                    <GridViewColumn Header="Key Usage"
+                                    Width="320"
+                                    DisplayMemberBinding="{Binding KeyUsage}" />
                 </GridView>
             </ListView.View>
         </ListView>

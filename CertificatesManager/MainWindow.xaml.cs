@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
@@ -418,6 +419,7 @@ public partial class MainWindow : Window
                 FilePath = filePath,
                 IsProtected = HasProtectedEku(certificate),
                 IsRsa = HasRequiredKeyUsage(certificate),
+                KeyUsage = ExtractKeyUsage(certificate),
                 PersonName = certificate.GetNameInfo(X509NameType.SimpleName, false),
                 Tin = ExtractTin(certificate.Subject)
             };
@@ -475,6 +477,78 @@ public partial class MainWindow : Window
         }
 
         return false;
+    }
+
+    private static string ExtractKeyUsage(X509Certificate2 certificate)
+    {
+        foreach (var extension in certificate.Extensions)
+        {
+            if (extension is X509KeyUsageExtension keyUsageExtension)
+            {
+                return FormatKeyUsage(keyUsageExtension);
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string FormatKeyUsage(X509KeyUsageExtension keyUsageExtension)
+    {
+        var flags = keyUsageExtension.KeyUsages;
+        var parts = new List<string>();
+
+        if (flags.HasFlag(X509KeyUsageFlags.DigitalSignature))
+        {
+            parts.Add("Digital Signature");
+        }
+
+        if (flags.HasFlag(X509KeyUsageFlags.NonRepudiation))
+        {
+            parts.Add("Non-Repudiation");
+        }
+
+        if (flags.HasFlag(X509KeyUsageFlags.KeyEncipherment))
+        {
+            parts.Add("Key Encipherment");
+        }
+
+        if (flags.HasFlag(X509KeyUsageFlags.DataEncipherment))
+        {
+            parts.Add("Data Encipherment");
+        }
+
+        if (flags.HasFlag(X509KeyUsageFlags.KeyAgreement))
+        {
+            parts.Add("Key Agreement");
+        }
+
+        if (flags.HasFlag(X509KeyUsageFlags.KeyCertSign))
+        {
+            parts.Add("Certificate Signing");
+        }
+
+        if (flags.HasFlag(X509KeyUsageFlags.CrlSign))
+        {
+            parts.Add("CRL Signing");
+        }
+
+        if (flags.HasFlag(X509KeyUsageFlags.EncipherOnly))
+        {
+            parts.Add("Encipher Only");
+        }
+
+        if (flags.HasFlag(X509KeyUsageFlags.DecipherOnly))
+        {
+            parts.Add("Decipher Only");
+        }
+
+        if (parts.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var hexValue = ((int)flags).ToString("x", CultureInfo.InvariantCulture);
+        return $"{string.Join(", ", parts)} ({hexValue})";
     }
 
     private static string ExtractTin(string subject)
@@ -642,6 +716,8 @@ public partial class MainWindow : Window
         public bool IsProtected { get; init; }
 
         public bool IsRsa { get; init; }
+
+        public string KeyUsage { get; init; } = string.Empty;
 
         public string FileName { get; init; } = string.Empty;
 
