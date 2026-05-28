@@ -6,7 +6,92 @@
         mc:Ignorable="d"
         Title="Certificates Manager"
         Height="450"
-        Width="800">
+        Width="800"
+        Background="#F4F6F8"
+        FontFamily="Segoe UI" FontSize="13"
+        >
+
+    <Window.Resources>
+        <Style TargetType="TextBlock" x:Key="FieldLabel">
+            <Setter Property="Foreground" Value="#4A5568"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style TargetType="TextBox" x:Key="InputBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderBrush" Value="#CBD5E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="Button" x:Key="PrimaryButton">
+            <Setter Property="Background" Value="#2B6CB0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#2C5282"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#A0AEC0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Button" x:Key="SecondaryButton" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="#4A5568"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2D3748"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="Button" x:Key="DeleteButton">
+            <Setter Property="Background" Value="#E53E3E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#C53030"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#A0AEC0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -23,7 +108,8 @@
                    Grid.Column="0"
                    Grid.ColumnSpan="2"
                    Margin="0,0,0,8"
-                   Text="Certificates folder" />
+                   Text="Certificates folder" 
+                   Style="{StaticResource FieldLabel}"/>
 
         <TextBox x:Name="FolderPathTextBox"
                  Grid.Row="1"
@@ -31,7 +117,9 @@
                  Margin="0,0,8,12"
                  VerticalContentAlignment="Center"
                  KeyDown="FolderPathTextBox_KeyDown"
-                 LostFocus="FolderPathTextBox_LostFocus" />
+                 LostFocus="FolderPathTextBox_LostFocus"
+                 Style="{StaticResource InputBox}"
+                 />
 
         <Button Grid.Row="1"
                 Grid.Column="1"
@@ -39,7 +127,8 @@
                 Height="30"
                 VerticalAlignment="Top"
                 Content="Choose folder"
-                Click="ChooseFolderButton_Click" />
+                Click="ChooseFolderButton_Click" 
+                Style="{StaticResource PrimaryButton}"/>
 
         <ListView x:Name="CertificatesListView"
                   Grid.Row="2"
