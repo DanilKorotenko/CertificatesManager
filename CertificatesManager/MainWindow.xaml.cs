@@ -39,6 +39,7 @@ public partial class MainWindow : Window
         var savedFolder = LoadSavedCertificatesFolder();
         if (string.IsNullOrWhiteSpace(savedFolder))
         {
+            SetStatus("Ready");
             return;
         }
 
@@ -48,7 +49,15 @@ public partial class MainWindow : Window
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        SaveCertificatesFolder(FolderPathTextBox.Text);
+        try
+        {
+            SaveCertificatesFolder(FolderPathTextBox.Text);
+        }
+        catch (Exception exception)
+        {
+            SetStatus($"Error saving settings: {exception.Message}");
+        }
+
         DisposeWatcher();
     }
 
@@ -90,11 +99,20 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
         {
             _certificateFiles.Clear();
+            SetStatus("Error: certificates folder does not exist.");
             return;
         }
 
-        RefreshCertificatesList(folderPath);
-        StartFolderWatcher(folderPath);
+        try
+        {
+            RefreshCertificatesList(folderPath);
+            StartFolderWatcher(folderPath);
+        }
+        catch (Exception exception)
+        {
+            _certificateFiles.Clear();
+            SetStatus($"Error: {exception.Message}");
+        }
     }
 
     private void RefreshCertificatesList(string folderPath)
@@ -105,18 +123,34 @@ public partial class MainWindow : Window
             .ToList();
 
         _certificateFiles.Clear();
+
+        string? firstError = null;
         foreach (var filePath in files)
         {
-            _certificateFiles.Add(BuildCertificateItem(filePath));
+            _certificateFiles.Add(BuildCertificateItem(filePath, out var fileError));
+            if (firstError is null && !string.IsNullOrWhiteSpace(fileError))
+            {
+                firstError = fileError;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(firstError))
+        {
+            SetStatus(firstError);
+        }
+        else
+        {
+            SetStatus($"Loaded {_certificateFiles.Count} certificate(s).");
         }
     }
 
-    private static CertificateListItem BuildCertificateItem(string filePath)
+    private static CertificateListItem BuildCertificateItem(string filePath, out string? fileError)
     {
         try
         {
             using var certificate = X509CertificateLoader.LoadCertificateFromFile(filePath);
 
+            fileError = null;
             return new CertificateListItem
             {
                 FileName = Path.GetFileName(filePath) ?? filePath,
@@ -126,8 +160,9 @@ public partial class MainWindow : Window
                 Tin = ExtractTin(certificate.Subject)
             };
         }
-        catch
+        catch (Exception exception)
         {
+            fileError = $"Error reading {Path.GetFileName(filePath)}: {exception.Message}";
             return new CertificateListItem
             {
                 FileName = Path.GetFileName(filePath) ?? filePath
@@ -197,6 +232,7 @@ public partial class MainWindow : Window
         _folderWatcher.Created += FolderWatcher_OnChanged;
         _folderWatcher.Deleted += FolderWatcher_OnChanged;
         _folderWatcher.Renamed += FolderWatcher_OnChanged;
+        _folderWatcher.Error += FolderWatcher_Error;
         _folderWatcher.EnableRaisingEvents = true;
     }
 
@@ -204,15 +240,28 @@ public partial class MainWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            if (Directory.Exists(FolderPathTextBox.Text))
+            try
             {
-                RefreshCertificatesList(FolderPathTextBox.Text);
+                if (Directory.Exists(FolderPathTextBox.Text))
+                {
+                    RefreshCertificatesList(FolderPathTextBox.Text);
+                }
+                else
+                {
+                    _certificateFiles.Clear();
+                    SetStatus("Error: certificates folder is no longer available.");
+                }
             }
-            else
+            catch (Exception exception)
             {
-                _certificateFiles.Clear();
+                SetStatus($"Error: {exception.Message}");
             }
         });
+    }
+
+    private void FolderWatcher_Error(object sender, ErrorEventArgs e)
+    {
+        Dispatcher.Invoke(() => SetStatus($"Watcher error: {e.GetException().Message}"));
     }
 
     private string? LoadSavedCertificatesFolder()
@@ -230,6 +279,7 @@ public partial class MainWindow : Window
         }
         catch
         {
+            SetStatus("Error loading settings file.");
             return null;
         }
     }
@@ -269,8 +319,14 @@ public partial class MainWindow : Window
         _folderWatcher.Created -= FolderWatcher_OnChanged;
         _folderWatcher.Deleted -= FolderWatcher_OnChanged;
         _folderWatcher.Renamed -= FolderWatcher_OnChanged;
+        _folderWatcher.Error -= FolderWatcher_Error;
         _folderWatcher.Dispose();
         _folderWatcher = null;
+    }
+
+    private void SetStatus(string message)
+    {
+        StatusTextBlock.Text = message;
     }
 
     private sealed class AppSettings
