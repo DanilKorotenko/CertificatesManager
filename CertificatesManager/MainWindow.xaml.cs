@@ -264,9 +264,34 @@ public partial class MainWindow : Window
         }
     }
 
+    private void RenameAllButton_Click(object sender, RoutedEventArgs e)
+    {
+        var items = _certificateFiles
+            .Where(x => x.Kind == ListItemKind.Certificate)
+            .ToList();
+
+        if (items.Count == 0)
+        {
+            SetStatus("Error: немає сертифікатів для перейменування.");
+            return;
+        }
+
+        BulkRenameFiles(items);
+    }
+
     private void BulkRenameFilesMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not MenuItem { DataContext: List<CertificateListItem> items } || items.Count == 0)
+        {
+            return;
+        }
+
+        BulkRenameFiles(items);
+    }
+
+    private void BulkRenameFiles(IReadOnlyList<CertificateListItem> items)
+    {
+        if (items.Count == 0)
         {
             return;
         }
