@@ -10,12 +10,28 @@ Windows desktop application for managing `.cer` certificate files in a local fol
 
 - Choose a **certificates folder** via path field or **Choose folder** dialog.
 - The selected folder is saved on exit and restored on the next launch.
-- Only `*.cer` files in the folder are shown.
-- Files are sorted by **Date Modified** (newest first).
+- Certificate files are sorted by **Date Modified** (newest first).
+
+### Show folders
+
+- **Show folders** checkbox toggles folder browsing on or off.
+- The checkbox state is saved in application settings and restored on launch.
+
+When **Show folders** is enabled:
+
+- The list displays **subdirectories** alongside `*.cer` files.
+- A **`..`** entry appears at the top to navigate to the parent directory.
+- **Double-click** a folder to open it — the list shows that folder's subdirectories and certificates, and the **Certificates folder** path is updated accordingly.
+- The folder watcher also reacts to directory create/delete/rename events.
+
+When **Show folders** is disabled:
+
+- Only `*.cer` files in the current folder are shown.
+- Folder navigation is not available.
 
 ### Automatic folder watch
 
-- The application **watches the certificates folder** and **updates the file list automatically** when files are added, removed, renamed, or modified.
+- The application **watches the current folder** and **updates the file list automatically** when files (and, when folder support is on, directories) are added, removed, renamed, or modified.
 
 ### Certificate information
 
@@ -35,15 +51,22 @@ For each certificate, the list shows:
 
 ### Rename and delete
 
-**Single file** (right-click a row):
+**Rename all** button:
+
+- **Переіменувати всі** renames **all certificate files** currently shown in the list (folders are skipped).
+- Uses the same bulk rename rules as the context menu:
+  - RSA = true → `<ПІБ>.cer`
+  - RSA = false → `<ПІБ>_RSA.cer`
+
+**Single file** (right-click a certificate row):
 
 - **Переіменувати в `<ПІБ>`** — renames to `<ПІБ>.cer`
 - **Переіменувати в `<ПІБ>_RSA`** — when RSA applies, renames to `<ПІБ>_RSA.cer`
 - **Видалити файл** — deletes the certificate file
 
-**Multiple files** (select several rows, then right-click):
+**Multiple files** (select several certificate rows, then right-click):
 
-- **Переіменувати відповідно ПІБ та ПІБ_RSA** — **bulk rename** using RSA:
+- **Переіменувати відповідно ПІБ та ПІБ_RSA** — **bulk rename** of selected files using RSA:
   - RSA = true → `<ПІБ>.cer`
   - RSA = false → `<ПІБ>_RSA.cer`
 - **Видалити всі** — **bulk delete** of all selected files
