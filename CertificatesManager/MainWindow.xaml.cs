@@ -37,22 +37,24 @@ public partial class MainWindow : Window
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        var savedFolder = LoadSavedCertificatesFolder();
-        if (string.IsNullOrWhiteSpace(savedFolder))
+        var settings = LoadSettings();
+        ShowFoldersCheckBox.IsChecked = settings?.ShowFolders ?? false;
+
+        if (string.IsNullOrWhiteSpace(settings?.CertificatesFolder))
         {
             SetStatus("Ready");
             return;
         }
 
-        FolderPathTextBox.Text = savedFolder;
-        ApplyCertificatesFolder(savedFolder);
+        FolderPathTextBox.Text = settings.CertificatesFolder;
+        ApplyCertificatesFolder(settings.CertificatesFolder);
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         try
         {
-            SaveCertificatesFolder(FolderPathTextBox.Text);
+            SaveSettings();
         }
         catch (Exception exception)
         {
@@ -60,6 +62,23 @@ public partial class MainWindow : Window
         }
 
         DisposeWatcher();
+    }
+
+    private void ShowFoldersCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        if (Directory.Exists(FolderPathTextBox.Text))
+        {
+            ApplyCertificatesFolder(FolderPathTextBox.Text);
+        }
+        else
+        {
+            RefreshCurrentFolder();
+        }
     }
 
     private void ChooseFolderButton_Click(object sender, RoutedEventArgs e)
@@ -93,6 +112,28 @@ public partial class MainWindow : Window
         ApplyCertificatesFolder(FolderPathTextBox.Text);
     }
 
+    private void CertificatesListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (CertificatesListView.SelectedItem is not CertificateListItem item || !item.IsNavigable)
+        {
+            return;
+        }
+
+        NavigateToFolder(item.FilePath);
+    }
+
+    private void NavigateToFolder(string folderPath)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
+        {
+            SetStatus("Error: certificates folder does not exist.");
+            return;
+        }
+
+        FolderPathTextBox.Text = folderPath;
+        ApplyCertificatesFolder(folderPath);
+    }
+
     private void CertificatesListViewItem_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
         if (sender is not ListViewItem listViewItem || listViewItem.DataContext is not CertificateListItem item)
@@ -100,8 +141,15 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (item.Kind != ListItemKind.Certificate)
+        {
+            listViewItem.ContextMenu = null;
+            return;
+        }
+
         var selectedItems = CertificatesListView.SelectedItems
             .Cast<CertificateListItem>()
+            .Where(x => x.Kind == ListItemKind.Certificate)
             .ToList();
 
         var shouldUseBulkMenu = selectedItems.Count > 1 && selectedItems.Contains(item);
@@ -379,17 +427,45 @@ public partial class MainWindow : Window
 
     private void RefreshCertificatesList(string folderPath)
     {
+        _certificateFiles.Clear();
+
+        if (ShowFoldersCheckBox.IsChecked == true)
+        {
+            var parentDirectory = Directory.GetParent(folderPath);
+            if (parentDirectory is not null)
+            {
+                _certificateFiles.Add(new CertificateListItem
+                {
+                    Kind = ListItemKind.ParentDirectory,
+                    FileName = "..",
+                    FilePath = parentDirectory.FullName
+                });
+            }
+
+            foreach (var directoryPath in Directory
+                         .GetDirectories(folderPath)
+                         .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+            {
+                _certificateFiles.Add(new CertificateListItem
+                {
+                    Kind = ListItemKind.Directory,
+                    FileName = Path.GetFileName(directoryPath) ?? directoryPath,
+                    FilePath = directoryPath
+                });
+            }
+        }
+
         var files = Directory
             .GetFiles(folderPath, CertificatesExtension, SearchOption.TopDirectoryOnly)
             .OrderByDescending(File.GetLastWriteTimeUtc)
             .ToList();
 
-        _certificateFiles.Clear();
-
         string? firstError = null;
+        var certificateCount = 0;
         foreach (var filePath in files)
         {
             _certificateFiles.Add(BuildCertificateItem(filePath, out var fileError));
+            certificateCount++;
             if (firstError is null && !string.IsNullOrWhiteSpace(fileError))
             {
                 firstError = fileError;
@@ -402,7 +478,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            SetStatus($"Loaded {_certificateFiles.Count} certificate(s).");
+            SetStatus($"Loaded {certificateCount} certificate(s).");
         }
     }
 
@@ -415,6 +491,7 @@ public partial class MainWindow : Window
             fileError = null;
             return new CertificateListItem
             {
+                Kind = ListItemKind.Certificate,
                 FileName = Path.GetFileName(filePath) ?? filePath,
                 FilePath = filePath,
                 IsProtected = HasProtectedEku(certificate),
@@ -429,6 +506,7 @@ public partial class MainWindow : Window
             fileError = $"Error reading {Path.GetFileName(filePath)}: {exception.Message}";
             return new CertificateListItem
             {
+                Kind = ListItemKind.Certificate,
                 FileName = Path.GetFileName(filePath) ?? filePath,
                 FilePath = filePath
             };
@@ -559,11 +637,19 @@ public partial class MainWindow : Window
 
     private void StartFolderWatcher(string folderPath)
     {
-        _folderWatcher = new FileSystemWatcher(folderPath, CertificatesExtension)
-        {
-            IncludeSubdirectories = false,
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime
-        };
+        var showFolders = ShowFoldersCheckBox.IsChecked == true;
+
+        _folderWatcher = showFolders
+            ? new FileSystemWatcher(folderPath)
+            : new FileSystemWatcher(folderPath, CertificatesExtension);
+
+        _folderWatcher.IncludeSubdirectories = false;
+        _folderWatcher.NotifyFilter = showFolders
+            ? NotifyFilters.FileName
+                | NotifyFilters.DirectoryName
+                | NotifyFilters.LastWrite
+                | NotifyFilters.CreationTime
+            : NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime;
 
         _folderWatcher.Changed += FolderWatcher_OnChanged;
         _folderWatcher.Created += FolderWatcher_OnChanged;
@@ -601,7 +687,7 @@ public partial class MainWindow : Window
         Dispatcher.Invoke(() => SetStatus($"Watcher error: {e.GetException().Message}"));
     }
 
-    private string? LoadSavedCertificatesFolder()
+    private AppSettings? LoadSettings()
     {
         if (!File.Exists(_settingsFilePath))
         {
@@ -611,8 +697,7 @@ public partial class MainWindow : Window
         try
         {
             var json = File.ReadAllText(_settingsFilePath);
-            var settings = JsonSerializer.Deserialize<AppSettings>(json);
-            return settings?.CertificatesFolder;
+            return JsonSerializer.Deserialize<AppSettings>(json);
         }
         catch
         {
@@ -621,7 +706,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SaveCertificatesFolder(string? folderPath)
+    private void SaveSettings()
     {
         var settingsDirectory = Path.GetDirectoryName(_settingsFilePath);
         if (string.IsNullOrWhiteSpace(settingsDirectory))
@@ -633,7 +718,8 @@ public partial class MainWindow : Window
 
         var settings = new AppSettings
         {
-            CertificatesFolder = folderPath?.Trim()
+            CertificatesFolder = FolderPathTextBox.Text?.Trim(),
+            ShowFolders = ShowFoldersCheckBox.IsChecked == true
         };
 
         var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions
@@ -709,10 +795,21 @@ public partial class MainWindow : Window
     private sealed class AppSettings
     {
         public string? CertificatesFolder { get; init; }
+
+        public bool ShowFolders { get; init; }
+    }
+
+    private enum ListItemKind
+    {
+        ParentDirectory,
+        Directory,
+        Certificate
     }
 
     private sealed class CertificateListItem
     {
+        public ListItemKind Kind { get; init; } = ListItemKind.Certificate;
+
         public bool IsProtected { get; init; }
 
         public bool IsRsa { get; init; }
@@ -726,6 +823,8 @@ public partial class MainWindow : Window
         public string PersonName { get; init; } = string.Empty;
 
         public string Tin { get; init; } = string.Empty;
+
+        public bool IsNavigable => Kind is ListItemKind.ParentDirectory or ListItemKind.Directory;
 
         public string IsProtectedMark => IsProtected ? "✓" : string.Empty;
 

@@ -96,6 +96,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -130,11 +131,21 @@
                 Click="ChooseFolderButton_Click" 
                 Style="{StaticResource PrimaryButton}"/>
 
-        <ListView x:Name="CertificatesListView"
+        <CheckBox x:Name="ShowFoldersCheckBox"
                   Grid.Row="2"
                   Grid.Column="0"
                   Grid.ColumnSpan="2"
-                  SelectionMode="Extended">
+                  Margin="0,0,0,12"
+                  Content="Show folders"
+                  Checked="ShowFoldersCheckBox_Changed"
+                  Unchecked="ShowFoldersCheckBox_Changed" />
+
+        <ListView x:Name="CertificatesListView"
+                  Grid.Row="3"
+                  Grid.Column="0"
+                  Grid.ColumnSpan="2"
+                  SelectionMode="Extended"
+                  MouseDoubleClick="CertificatesListView_MouseDoubleClick">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <EventSetter Event="ContextMenuOpening"
@@ -179,7 +190,7 @@
             </ListView.View>
         </ListView>
 
-        <StatusBar Grid.Row="3"
+        <StatusBar Grid.Row="4"
                    Grid.Column="0"
                    Grid.ColumnSpan="2"
                    Margin="0,8,0,0">
